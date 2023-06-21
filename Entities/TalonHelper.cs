@@ -11,6 +11,16 @@ namespace Klondike.Entities {
             CardsDrawn = new int[talonSize];
             StockUsed = new bool[talonSize];
         }
+
+        public override string ToString() {
+            string result = "";
+            for (int i = 0; i < StockWaste.Length; i++)
+            {
+                result += $"{StockWaste[i]} {CardsDrawn[i]} {StockUsed[i]}\n";
+            }
+            return result;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public int Calculate(int drawCount, Pile wastePile, Pile stockPile) {
             int Size = 0;
@@ -22,6 +32,7 @@ namespace Klondike.Entities {
                 StockWaste[Size] = wastePile.BottomNoCheck;
                 CardsDrawn[Size++] = 0;
             }
+            if (drawCount == 0) return Size;
 
             //Check cards waiting to be turned over from stock
             int stockSize = stockPile.Size;

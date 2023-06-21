@@ -7,6 +7,10 @@ namespace Klondike.Entities {
         private readonly int Index;
         private readonly Card[] Cards;
 
+        public void Clone(Pile input) {
+            Size = input.Size;
+            First = input.First;
+        }
         public Pile(Card[] cards, int index) {
             Cards = cards;
             Index = index;
@@ -85,7 +89,11 @@ namespace Klondike.Entities {
             get { return Size - First; }
         }
         public override string ToString() {
-            return $"Max: {Cards.Length} Size: {Size} First: {First}";
+            string cards = "";
+            for (int i = Index; i < Index + Size; i++) {
+                cards += Cards[i] + (i - Index < First ? "* " : " ");
+            }
+            return $"Size: {Size} First {First} Index: {Index} Cards: {cards}";
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CompareTo(Pile other) {

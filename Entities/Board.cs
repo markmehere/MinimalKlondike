@@ -25,6 +25,8 @@ namespace Klondike.Entities {
         public bool AllowFoundationToTableau { get; set; }
         private readonly Card[] state, initialState, deck;
         private readonly Pile[] piles, initialPiles;
+        private int initialTalon = TalonSize;
+        private int initialWaste = 0;
         private readonly Move[] movesMade;
         private Random random;
         private readonly TalonHelper helper;
@@ -46,6 +48,18 @@ namespace Klondike.Entities {
         public bool Solved {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return foundationCount == DeckSize; }
+        }
+
+        public void FakeIt()
+        {
+            for (int i = 0; i < deck.Length; i++) {
+                deck[i] = new Card(i);
+            }
+            Array.Copy(state, initialState, state.Length);
+            for (int i = WastePile; i <= StockPile; i++) {
+                initialPiles[i].Clone(piles[i]);
+            }
+            movesTotal = 0;
         }
 
         public Board(int drawAmount) {
@@ -672,7 +686,8 @@ namespace Klondike.Entities {
             Pile wastePile = piles[WastePile];
             int wasteSize = wastePile.Size;
             int moves = piles[StockPile].Size;
-            moves += (moves + drawCount - 1) / drawCount + wasteSize;
+            if (drawCount == 0) moves = wasteSize;
+            else moves += (moves + drawCount - 1) / drawCount + wasteSize;
             Span<byte> mins = stackalloc byte[4] { byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue };
 
             if (drawCount == 1 || lastRound) {
@@ -887,6 +902,98 @@ namespace Klondike.Entities {
             Reset();
             return true;
         }
+        public bool SetState(string boardState) {
+            if (boardState.Length < deck.Length * 2 - 1) { return false; }
+            Array.Fill(state, Card.EMTPY);
+            int pileFocus = 0;
+            List<Card> revWastePile = new List<Card>();
+            List<Card> revStockPile = new List<Card>();
+
+            for (int i = WastePile; i <= StockPile; i++)
+            {
+                initialPiles[i].Reset();
+            }
+            for (int i = 0; i < boardState.Length; i++)
+            {
+                if (char.IsWhiteSpace(boardState[i])) {
+                    continue;
+                }
+
+                if (boardState[i] == ';') {
+                    pileFocus++;
+                    continue;
+                }
+
+                char rank = char.ToUpper(boardState[i]);
+                switch (rank)
+                {
+                    case 'A': rank = (char)CardRank.Ace; break;
+                    case '2': rank = (char)CardRank.Two; break;
+                    case '3': rank = (char)CardRank.Three; break;
+                    case '4': rank = (char)CardRank.Four; break;
+                    case '5': rank = (char)CardRank.Five; break;
+                    case '6': rank = (char)CardRank.Six; break;
+                    case '7': rank = (char)CardRank.Seven; break;
+                    case '8': rank = (char)CardRank.Eight; break;
+                    case '9': rank = (char)CardRank.Nine; break;
+                    case 'T': rank = (char)CardRank.Ten; break;
+                    case 'J': rank = (char)CardRank.Jack; break;
+                    case 'Q': rank = (char)CardRank.Queen; break;
+                    case 'K': rank = (char)CardRank.King; break;
+                    default: return false;
+                }
+                i++;
+
+                char suit = char.ToUpper(boardState[i]);
+                switch (suit)
+                {
+                    case 'C': suit = (char)CardSuit.Clubs; break;
+                    case 'D': suit = (char)CardSuit.Diamonds; break;
+                    case 'S': suit = (char)CardSuit.Spades; break;
+                    case 'H': suit = (char)CardSuit.Hearts; break;
+                    default: return false;
+                }
+                bool flipped = char.IsUpper(boardState[i]);
+
+                int id = suit * 13 + rank;
+                if (pileFocus == 0) {
+                    if (flipped) {
+                        revWastePile.Add(new Card(id));
+                    }
+                    else {
+                        revStockPile.Add(new Card(id));
+                    }
+                }
+                else if (pileFocus <= 4) {
+                    initialPiles[FoundationStart + suit].Add(new Card(id));
+                }
+                else if (pileFocus - 5 < TableauSize) {
+                    initialPiles[TableauStart + pileFocus - 5].Add(new Card(id));
+                    if (!flipped) {
+                        initialPiles[TableauStart + pileFocus - 5].Flip(0);
+                    }
+                    if (initialPiles[TableauStart + pileFocus - 5].First == -1) {
+                        initialPiles[TableauStart + pileFocus - 5].First = 0;
+                    }
+                }
+
+            }
+            revWastePile.Reverse();
+            revWastePile.ForEach(delegate (Card card)
+            {
+                initialPiles[WastePile].Add(card);
+            });
+            revStockPile.Reverse();
+            revStockPile.ForEach(delegate (Card card)
+            {
+                initialPiles[StockPile].Add(card);
+            });
+            Array.Copy(state, initialState, state.Length);
+            initialTalon = initialPiles[StockPile].Size;
+            initialWaste = initialPiles[WastePile].Size;
+            Reset();
+            return true;
+        }
         private int GetCard(string cardSet, int index) {
             int suit = (cardSet[index + 2] ^ 0x30) - 1;
             if (suit >= 2) {
@@ -1031,6 +1138,10 @@ namespace Klondike.Entities {
 
             Array.Copy(initialState, state, state.Length);
             Array.Copy(initialPiles, piles, piles.Length);
+            foundationCount = piles[Foundation1].Size + piles[Foundation2].Size + piles[Foundation3].Size + piles[Foundation4].Size;
+            if (foundationCount > 0) {
+                SetFoundationMin();
+            }
         }
         public bool VerifyGameState() {
             int count = deck.Length;
@@ -1062,8 +1173,8 @@ namespace Klondike.Entities {
         public int MovesMade {
             [MethodImpl(MethodImplOptions.AggressiveOptimization)]
             get {
-                int stockSize = TalonSize;
-                int wasteSize = 0;
+                int stockSize = initialTalon;
+                int wasteSize = initialWaste;
                 int moves = 0;
                 for (int i = 0; i < movesTotal; i++) {
                     Move move = movesMade[i];
@@ -1092,8 +1203,8 @@ namespace Klondike.Entities {
         public string MovesMadeOutput {
             get {
                 StringBuilder sb = new StringBuilder();
-                int stockSize = TalonSize;
-                int wasteSize = 0;
+                int stockSize = initialTalon;
+                int wasteSize = initialWaste;
                 for (int i = 0; i < movesTotal; i++) {
                     Move move = movesMade[i];
                     if (move.From == WastePile) {

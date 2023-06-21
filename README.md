@@ -84,3 +84,59 @@ ie) For the above deal with a draw count of 1 running this sequnce of moves woul
  QC
 +TD+KH+KD+7C
 ```
+
+`
+-M "IC @@AL KL @@AK @@@@@AE LJ AK LK" 072103023042094134111092051034044074114052123011083122012131091082124064014093033112071104132053133102084041013073063031061043081054113062024021101022032121
+`
+
+### Board State
+This release allows you to explicitly specify the board state to work from. This was needed for compatibility with programs that might not
+wish to record all moves from scratch. The board state in the diagram just above would be specified like so:
+
+```
+8STDKHKD7C7h6h3c6c4h8c5sJh6d2s2cTc2d3dQc;
+;
+AD;
+;
+AH;
+7D;
+Th9D;
+2h5c5D;
+4d3sQH;
+9s4sAcKcQSJDTS9H;
+Ks7s8h9c6S5H4C3H;
+JcJsQd8dAS
+```
+
+Whitespace is ignored however the capitalization of the suit determines whether the card is face-up or face-down.
+
+Also the order of piles is critical with the semi-colon separating the piles. Empty piles are relevant and excluding will result in a
+misalignment.
+
+As such "8S" is the card on which there is action. "7h" is the next one to be flipped from the stock and "TD" is
+the card that would appear if "8S" was placed on "9D".
+
+Similarly "Th" is face-down as is "8d". But "6S", "5H", "4C" and "3H" are all face-up.
+
+A quirk that has tripped me up is the foundation piles are actually ordered and must be Clubs-Diamonds-Hearts-Spades.
+
+
+`
+-X "8STDKHKD7C7h6h3c6c4h8c5sJh6d2s2cTc2d3dQc;;AD;;AH;7D;Th9D;2h5c5D;4d3sQH;9s4sAcKcQSJDTS9H;Ks7s8h9c6S5H4C3H;JcJsQd8dAS"
+`
+
+### Unit tests
+
+The following are solvable yet showing up wrong:
+
+```
+./Klondike -D 3 -S 100000 -X "7sJd9hJc4dKd6cQc;AS2S3S4S;AC2C;AH2H3H4H5H6H;AD;KSQHJSTD9S8D7C6D;5D4C3D;8S7H6S;KCQD;3c5sTcTH9C8H;7d2d5C;KHQSJHTS9D8C"  
+```
+
+```
+./Klondike -D 3 -S 100000 -X "7sJd9hJc4dKd6cQc;AS2S3S4S;AC2C;AH2H3H4H5H6H;AD;KSQHJSTD9S8D7C6D;5D4C3D;8S7H6S;KCQD;3c5sTcTH9C8H;7d2d5C;KHQSJHTS9D8C"
+```
+
+```
+./Klondike -D 3 -S 100000 -X "7sJd9hJc4dKd6cQc;AC2C;AD;AH2H3H4H5H6H;AS2S3S4S;KSQHJSTD9S8D7C6D;5D4C3D;8S7H6S;KCQD;3c5sTcTH9C8H;7d2d5C;KHQSJHTS9D8C"
+```
